@@ -106,7 +106,6 @@
         </div>
         <div class="info-text">操作：键盘方向键 ↑ ↓ ← →</div>
     </div>
-
     <div class="rank-panel">
         <div class="rank-block">
             <h4>🥉简单排行榜</h4>
@@ -123,384 +122,407 @@
     </div>
 
 <script>
-// ========= 注意！！URL只复制域名，不要带上/rest/v1/ =========
+// Supabase 配置（保留你原有密钥）
 const SUPABASE_URL = "https://sytrcvwyycapxjgbmobm.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dHJjdnd5eWNhcHhqZ2Jtb2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxNzQzNDcsImV4cCI6MjEwMTc1MDM0N30.fDrNuJ1C61CVDB7aEgO2fquIi8LT9l-k-VHbFKt6k60";
-// =========================================================
 
-const { createClient } = supabase;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// 等待页面、CDN、DOM全部加载完成再执行代码
+window.onload = async function() {
+    // 【核心修复1：改名supabaseClient，避开全局supabase重名冲突】
+    const { createClient } = window.supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { storage: null } // 消除浏览器追踪警告
+    });
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreDom = document.getElementById('score');
-const timerDom = document.getElementById('timer');
-const startBtn = document.getElementById('startBtn');
-const resetBtn = document.getElementById('resetBtn');
-const diffSelect = document.getElementById('difficultySelect');
-const rankEasyDom = document.getElementById('rankEasy');
-const rankMiddleDom = document.getElementById('rankMiddle');
-const rankHardDom = document.getElementById('rankHard');
+    // DOM 元素缓存
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDom = document.getElementById('score');
+    const timerDom = document.getElementById('timer');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const diffSelect = document.getElementById('difficultySelect');
+    const rankEasyDom = document.getElementById('rankEasy');
+    const rankMiddleDom = document.getElementById('rankMiddle');
+    const rankHardDom = document.getElementById('rankHard');
 
-// 点击画布获取键盘焦点
-canvas.addEventListener('click', () => canvas.focus());
+    // 点击画布自动获取键盘焦点
+    canvas.addEventListener('click', () => canvas.focus());
 
-// =====================【关键】按钮事件绑定放在最前面！！不受网络请求影响 =====================
-startBtn.addEventListener('click', startGame);
-resetBtn.addEventListener('click', resetGame);
+    // 地图参数 50宽75高
+    const GRID_WIDTH = 50;
+    const GRID_HEIGHT = 75;
+    canvas.width = 1000;
+    canvas.height = 1500;
+    const CELL_W = canvas.width / GRID_WIDTH;
+    const CELL_H = canvas.height / GRID_HEIGHT;
 
-//地图参数
-const GRID_WIDTH = 50;
-const GRID_HEIGHT = 75;
-canvas.width = 1000;
-canvas.height = 1500;
-const CELL_W = canvas.width / GRID_WIDTH;
-const CELL_H = canvas.height / GRID_HEIGHT;
-
-const DIFF_CONFIG = {
-    easy: { baseDelay:180, obstacles:[] },
-    middle: {
-        baseDelay:140,
-        obstacles: [
-            {x:23,y:36},{x:24,y:36},{x:25,y:36},{x:26,y:36},
-            {x:23,y:37},{x:24,y:37},{x:25,y:37},{x:26,y:37}
-        ]
-    },
-    hard: {
-        baseDelay:110,
-        obstacles: [
-            {x:23,y:36},{x:24,y:36},{x:25,y:36},{x:26,y:36},
-            {x:23,y:37},{x:24,y:37},{x:25,y:37},{x:26,y:37},
-            {x:24,y:34},{x:24,y:35},{x:24,y:38},{x:24,y:39},
-            {x:25,y:34},{x:25,y:35},{x:25,y:38},{x:25,y:39}
-        ]
-    }
-};
-
-let gameState = {
-    isRunning: false,
-    snake: [],
-    food: null,
-    blueFood: null,
-    dx: 1, dy:0,
-    score:0,
-    startTime:0,
-    gameTimer:null,
-    frameTimer:null,
-    currentDelay: 180,
-    growSpeedCounter:0,
-    obstacles:[],
-    currentDifficulty:"easy",
-    blueLogicActive: false,
-    blueWaitCount:0,
-    blueAliveCount:0
-}
-
-// ==========云端排行榜，增加try‑catch捕获异常==========
-async function renderRank(){
-    try{
-        async function getRank(diff){
-            const {data,error} = await supabase
-                .from('snake_rank')
-                .select('name,score')
-                .eq('difficulty', diff)
-                .order('score',{ascending:false})
-                .limit(10);
-            if(error) throw error;
-            return data || [];
+    // 难度配置
+    const DIFF_CONFIG = {
+        easy: { baseDelay:180, obstacles:[] },
+        middle: {
+            baseDelay:140,
+            obstacles: [
+                {x:23,y:36},{x:24,y:36},{x:25,y:36},{x:26,y:36},
+                {x:23,y:37},{x:24,y:37},{x:25,y:37},{x:26,y:37}
+            ]
+        },
+        hard: {
+            baseDelay:110,
+            obstacles: [
+                {x:23,y:36},{x:24,y:36},{x:25,y:36},{x:26,y:36},
+                {x:23,y:37},{x:24,y:37},{x:25,y:37},{x:26,y:37},
+                {x:24,y:34},{x:24,y:35},{x:24,y:38},{x:24,y:39},
+                {x:25,y:34},{x:25,y:35},{x:25,y:38},{x:25,y:39}
+            ]
         }
-        const easyList = await getRank("easy");
-        const middleList = await getRank("middle");
-        const hardList = await getRank("hard");
+    };
 
-        function renderOne(dom, list){
-            dom.innerHTML = "";
-            if(list.length ===0){
-                dom.innerHTML = "<div>暂无记录</div>";
-                return;
+    // 游戏全局状态
+    let gameState = {
+        isRunning: false,
+        snake: [],
+        food: null,
+        blueFood: null,
+        dx: 1, dy:0,
+        score:0,
+        startTime:0,
+        gameTimer:null,
+        frameTimer:null,
+        currentDelay: 180,
+        growSpeedCounter:0,
+        obstacles:[],
+        currentDifficulty:"easy",
+        blueLogicActive: false,
+        blueWaitCount:0,
+        blueAliveCount:0
+    };
+
+    // ========== 排行榜接口函数（全部改用supabaseClient）==========
+    async function renderRank(){
+        try{
+            async function getRank(diff){
+                const {data,error} = await supabaseClient
+                    .from('snake_rank')
+                    .select('name,score')
+                    .eq('difficulty', diff)
+                    .order('score',{ascending:false})
+                    .limit(10);
+                if(error) throw error;
+                return data || [];
             }
-            list.forEach((item,idx)=>{
-                const div = document.createElement('div');
-                div.className = "rank-item";
-                div.innerText = `${idx+1}. ${item.name} — ${item.score}分`;
-                dom.appendChild(div);
-            })
+            const easyList = await getRank("easy");
+            const middleList = await getRank("middle");
+            const hardList = await getRank("hard");
+
+            function renderOne(dom, list){
+                dom.innerHTML = "";
+                if(list.length ===0){
+                    dom.innerHTML = "<div>暂无记录</div>";
+                    return;
+                }
+                list.forEach((item,idx)=>{
+                    const div = document.createElement('div');
+                    div.className = "rank-item";
+                    div.innerText = `${idx+1}. ${item.name} — ${item.score}分`;
+                    dom.appendChild(div);
+                })
+            }
+            renderOne(rankEasyDom, easyList);
+            renderOne(rankMiddleDom, middleList);
+            renderOne(rankHardDom, hardList);
+        }catch(err){
+            console.error("排行榜加载失败：",err);
+            rankEasyDom.innerText = "加载失败";
+            rankMiddleDom.innerText = "加载失败";
+            rankHardDom.innerText = "加载失败";
         }
-        renderOne(rankEasyDom, easyList);
-        renderOne(rankMiddleDom, middleList);
-        renderOne(rankHardDom, hardList);
-    }catch(err){
-        console.error("排行榜加载失败：",err);
-        rankEasyDom.innerText = "加载失败";
-        rankMiddleDom.innerText = "加载失败";
-        rankHardDom.innerText = "加载失败";
-    }
-}
-
-async function trySaveScore(newScore,diffKey){
-    if(newScore <=0) return;
-    let name = prompt("恭喜！提交分数到排行榜，请输入你的名字：","玩家");
-    if(!name) return;
-    try{
-        const {error} = await supabase.from('snake_rank').insert([
-            {difficulty:diffKey, name:name, score:newScore}
-        ]);
-        if(error) throw error;
-        await renderRank();
-    }catch(err){
-        alert("分数提交失败："+err.message);
-    }
-}
-
-function initSnakeRandom(){
-    gameState.snake = [];
-    let headX, headY;
-    while(true){
-        headX = Math.floor(Math.random() * GRID_WIDTH);
-        headY = Math.floor(Math.random() * GRID_HEIGHT);
-        if(!isBlockPos(headX, headY)) break;
-    }
-    const dirs = [ {dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1} ];
-    const randDir = dirs[Math.floor(Math.random()*4)];
-    gameState.dx = randDir.dx;
-    gameState.dy = randDir.dy;
-
-    let segX = headX;
-    let segY = headY;
-    const backDx = -randDir.dx;
-    const backDy = -randDir.dy;
-    for(let i=0;i<4;i++){
-        gameState.snake.push({x:segX, y:segY});
-        segX += backDx;
-        segY += backDy;
-    }
-}
-
-function isBlockPos(x,y){
-    if(x<0||x>=GRID_WIDTH||y<0||y>=GRID_HEIGHT) return true;
-    for(let obs of gameState.obstacles){
-        if(obs.x ===x && obs.y ===y) return true;
-    }
-    for(let seg of gameState.snake){
-        if(seg.x ===x && seg.y ===y) return true;
-    }
-    return false;
-}
-
-function spawnFood(){
-    let x,y;
-    do{
-        x = Math.floor(Math.random() * GRID_WIDTH);
-        y = Math.floor(Math.random() * GRID_HEIGHT);
-    }while(isBlockPos(x,y));
-    gameState.food = {x,y};
-}
-function spawnBlueFood(){
-    let x,y;
-    do{
-        x = Math.floor(Math.random() * GRID_WIDTH);
-        y = Math.floor(Math.random() * GRID_HEIGHT);
-    }while(isBlockPos(x,y));
-    gameState.blueFood = {x,y};
-}
-
-function draw(){
-    ctx.fillStyle="#000000";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    ctx.fillStyle="#777777";
-    for(let obs of gameState.obstacles){
-        ctx.fillRect(obs.x*CELL_W, obs.y*CELL_H, CELL_W, CELL_H);
     }
 
-    for(let i=0;i<gameState.snake.length;i++){
-        const seg = gameState.snake[i];
-        const px = seg.x * CELL_W;
-        const py = seg.y * CELL_H;
-        const padW = CELL_W * 0.15;
-        const padH = CELL_H * 0.15;
-        const sizeW = CELL_W - padW*2;
-        const sizeH = CELL_H - padH*2;
-        if(i ===0){
-            ctx.fillStyle="#76ff8c";
-        }else{
-            ctx.fillStyle="#28b952";
+    async function trySaveScore(newScore,diffKey){
+        if(newScore <=0) return;
+        let name = prompt("恭喜！提交分数到排行榜，请输入你的名字：","玩家");
+        if(!name) return;
+        try{
+            const {error} = await supabaseClient.from('snake_rank').insert([
+                {difficulty:diffKey, name:name, score:newScore}
+            ]);
+            if(error) throw error;
+            await renderRank();
+        }catch(err){
+            alert("分数提交失败："+err.message);
         }
-        ctx.beginPath();
-        ctx.roundRect(px+padW, py+padH, sizeW, sizeH, Math.min(sizeW,sizeH)*0.45);
-        ctx.fill();
     }
 
-    if(gameState.food){
-        ctx.fillStyle="#ff3333";
-        ctx.beginPath();
-        const cx = gameState.food.x * CELL_W + CELL_W/2;
-        const cy = gameState.food.y * CELL_H + CELL_H/2;
-        const r = Math.min(CELL_W,CELL_H) * 0.42;
-        ctx.arc(cx, cy, r,0,Math.PI*2);
-        ctx.fill();
+    // 随机生成初始蛇
+    function initSnakeRandom(){
+        gameState.snake = [];
+        let headX, headY;
+        while(true){
+            headX = Math.floor(Math.random() * GRID_WIDTH);
+            headY = Math.floor(Math.random() * GRID_HEIGHT);
+            if(!isBlockPos(headX, headY)) break;
+        }
+        const dirs = [ {dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1} ];
+        const randDir = dirs[Math.floor(Math.random()*4)];
+        gameState.dx = randDir.dx;
+        gameState.dy = randDir.dy;
+
+        let segX = headX;
+        let segY = headY;
+        const backDx = -randDir.dx;
+        const backDy = -randDir.dy;
+        for(let i=0;i<4;i++){
+            gameState.snake.push({x:segX, y:segY});
+            segX += backDx;
+            segY += backDy;
+        }
     }
 
-    if(gameState.blueFood){
-        ctx.fillStyle="#33aaff";
-        ctx.beginPath();
-        const cx = gameState.blueFood.x * CELL_W + CELL_W/2;
-        const cy = gameState.blueFood.y * CELL_H + CELL_H/2;
-        const r = Math.min(CELL_W,CELL_H) * 0.42;
-        ctx.arc(cx, cy, r,0,Math.PI*2);
-        ctx.fill();
-    }
-}
-
-async function gameOver(){
-    gameState.isRunning = false;
-    clearInterval(gameState.frameTimer);
-    clearInterval(gameState.gameTimer);
-    alert(`游戏结束！得分：${gameState.score}`);
-    await trySaveScore(gameState.score, gameState.currentDifficulty);
-}
-
-function gameFrame(){
-    if(!gameState.isRunning) return;
-    const head = gameState.snake[0];
-    const newHead = {
-        x: head.x + gameState.dx,
-        y: head.y + gameState.dy
+    // 碰撞判断
+    function isBlockPos(x,y){
+        if(x<0||x>=GRID_WIDTH||y<0||y>=GRID_HEIGHT) return true;
+        for(let obs of gameState.obstacles){
+            if(obs.x ===x && obs.y ===y) return true;
+        }
+        for(let seg of gameState.snake){
+            if(seg.x ===x && seg.y ===y) return true;
+        }
+        return false;
     }
 
-    if(isBlockPos(newHead.x, newHead.y)){
-        gameOver();
-        return;
+    // 生成普通红点
+    function spawnFood(){
+        let x,y;
+        do{
+            x = Math.floor(Math.random() * GRID_WIDTH);
+            y = Math.floor(Math.random() * GRID_HEIGHT);
+        }while(isBlockPos(x,y));
+        gameState.food = {x,y};
     }
-    for(let seg of gameState.snake){
-        if(newHead.x === seg.x && newHead.y === seg.y){
+
+    // 生成蓝色特殊点
+    function spawnBlueFood(){
+        let x,y;
+        do{
+            x = Math.floor(Math.random() * GRID_WIDTH);
+            y = Math.floor(Math.random() * GRID_HEIGHT);
+        }while(isBlockPos(x,y));
+        gameState.blueFood = {x,y};
+    }
+
+    // 绘制画面
+    function draw(){
+        ctx.fillStyle="#000000";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+        // 绘制障碍物
+        ctx.fillStyle="#777777";
+        for(let obs of gameState.obstacles){
+            ctx.fillRect(obs.x*CELL_W, obs.y*CELL_H, CELL_W, CELL_H);
+        }
+
+        // 绘制蛇（头亮绿、身体深绿圆角）
+        for(let i=0;i<gameState.snake.length;i++){
+            const seg = gameState.snake[i];
+            const px = seg.x * CELL_W;
+            const py = seg.y * CELL_H;
+            const padW = CELL_W * 0.15;
+            const padH = CELL_H * 0.15;
+            const sizeW = CELL_W - padW*2;
+            const sizeH = CELL_H - padH*2;
+            if(i ===0){
+                ctx.fillStyle="#76ff8c";
+            }else{
+                ctx.fillStyle="#28b952";
+            }
+            ctx.beginPath();
+            ctx.roundRect(px+padW, py+padH, sizeW, sizeH, Math.min(sizeW,sizeH)*0.45);
+            ctx.fill();
+        }
+
+        // 红色圆形食物
+        if(gameState.food){
+            ctx.fillStyle="#ff3333";
+            ctx.beginPath();
+            const cx = gameState.food.x * CELL_W + CELL_W/2;
+            const cy = gameState.food.y * CELL_H + CELL_H/2;
+            const r = Math.min(CELL_W,CELL_H) * 0.42;
+            ctx.arc(cx, cy, r,0,Math.PI*2);
+            ctx.fill();
+        }
+
+        // 蓝色圆形特殊点
+        if(gameState.blueFood){
+            ctx.fillStyle="#33aaff";
+            ctx.beginPath();
+            const cx = gameState.blueFood.x * CELL_W + CELL_W/2;
+            const cy = gameState.blueFood.y * CELL_H + CELL_H/2;
+            const r = Math.min(CELL_W,CELL_H) * 0.42;
+            ctx.arc(cx, cy, r,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    // 游戏结束逻辑
+    async function gameOver(){
+        gameState.isRunning = false;
+        clearInterval(gameState.frameTimer);
+        clearInterval(gameState.gameTimer);
+        alert(`游戏结束！得分：${gameState.score}`);
+        await trySaveScore(gameState.score, gameState.currentDifficulty);
+    }
+
+    // 游戏帧更新
+    function gameFrame(){
+        if(!gameState.isRunning) return;
+        const head = gameState.snake[0];
+        const newHead = {
+            x: head.x + gameState.dx,
+            y: head.y + gameState.dy
+        };
+
+        // 撞墙/撞障碍/撞自身判定
+        if(isBlockPos(newHead.x, newHead.y)){
             gameOver();
             return;
         }
+        for(let seg of gameState.snake){
+            if(newHead.x === seg.x && newHead.y === seg.y){
+                gameOver();
+                return;
+            }
+        }
+
+        gameState.snake.unshift(newHead);
+        let ateFood = false;
+
+        // 吃到普通红点
+        if(gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y){
+            gameState.score += 1;
+            gameState.growSpeedCounter += 1;
+            ateFood = true;
+            spawnFood();
+            // 每吃5个提速
+            if(gameState.growSpeedCounter %5 === 0){
+                if(gameState.currentDelay >40){
+                    gameState.currentDelay -=10;
+                    clearInterval(gameState.frameTimer);
+                    gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+                }
+            }
+        }
+
+        // 吃到蓝点
+        if(gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y){
+            gameState.score +=5;
+            ateFood = true;
+            gameState.blueFood = null;
+            gameState.blueWaitCount = 0;
+        }
+
+        if(!ateFood){
+            gameState.snake.pop();
+        }
+
+        scoreDom.innerText = gameState.score;
+        draw();
     }
 
-    gameState.snake.unshift(newHead);
+    // 开启游戏（函数提前定义，再绑定事件）
+    function startGame(){
+        if(gameState.isRunning) return;
+        const diffKey = diffSelect.value;
+        gameState.currentDifficulty = diffKey;
+        const diff = DIFF_CONFIG[diffKey];
+        gameState.obstacles = [...diff.obstacles];
+        gameState.currentDelay = diff.baseDelay;
 
-    let ateFood = false;
-    if(gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y){
-        gameState.score += 1;
-        gameState.growSpeedCounter += 1;
-        ateFood = true;
+        initSnakeRandom();
         spawnFood();
-        if(gameState.growSpeedCounter %5 === 0){
-            if(gameState.currentDelay >40){
-                gameState.currentDelay -=10;
-                clearInterval(gameState.frameTimer);
-                gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
-            }
-        }
-    }
-    if(gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y){
-        gameState.score +=5;
-        ateFood = true;
         gameState.blueFood = null;
+        gameState.score = 0;
+        gameState.growSpeedCounter = 0;
+        gameState.isRunning = true;
+        gameState.startTime = Date.now();
+        gameState.blueLogicActive = false;
         gameState.blueWaitCount = 0;
-    }
+        gameState.blueAliveCount = 0;
 
-    if(!ateFood){
-        gameState.snake.pop();
-    }
+        scoreDom.innerText = 0;
+        timerDom.innerText =0;
 
-    scoreDom.innerText = gameState.score;
-    draw();
-}
+        gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+        gameState.gameTimer = setInterval(()=>{
+            const sec = Math.floor((Date.now() - gameState.startTime)/1000);
+            timerDom.innerText = sec;
+            if(sec >= 30) gameState.blueLogicActive = true;
+            if(!gameState.blueLogicActive) return;
 
-function startGame(){
-    if(gameState.isRunning) return;
-    const diffKey = diffSelect.value;
-    gameState.currentDifficulty = diffKey;
-    const diff = DIFF_CONFIG[diffKey];
-    gameState.obstacles = [...diff.obstacles];
-    gameState.currentDelay = diff.baseDelay;
-
-    initSnakeRandom();
-    spawnFood();
-    gameState.blueFood = null;
-    gameState.score = 0;
-    gameState.growSpeedCounter = 0;
-    gameState.isRunning = true;
-    gameState.startTime = Date.now();
-    gameState.blueLogicActive = false;
-    gameState.blueWaitCount = 0;
-    gameState.blueAliveCount = 0;
-
-    scoreDom.innerText = 0;
-    timerDom.innerText =0;
-
-    gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
-
-    gameState.gameTimer = setInterval(()=>{
-        const sec = Math.floor((Date.now() - gameState.startTime)/1000);
-        timerDom.innerText = sec;
-
-        if(sec >= 30){
-            gameState.blueLogicActive = true;
-        }
-        if(!gameState.blueLogicActive) return;
-
-        if(gameState.blueFood === null){
-            gameState.blueWaitCount +=1;
-            if(gameState.blueWaitCount >= 30){
-                spawnBlueFood();
-                gameState.blueAliveCount = 0;
-                gameState.blueWaitCount = 0;
+            // 蓝点规则：消失后等待30秒生成，存在20秒自动消失
+            if(gameState.blueFood === null){
+                gameState.blueWaitCount +=1;
+                if(gameState.blueWaitCount >= 30){
+                    spawnBlueFood();
+                    gameState.blueAliveCount = 0;
+                    gameState.blueWaitCount = 0;
+                }
+            }else{
+                gameState.blueAliveCount +=1;
+                if(gameState.blueAliveCount >= 20){
+                    gameState.blueFood = null;
+                    gameState.blueWaitCount = 0;
+                }
             }
-        }else{
-            gameState.blueAliveCount +=1;
-            if(gameState.blueAliveCount >= 20){
-                gameState.blueFood = null;
-                gameState.blueWaitCount = 0;
-            }
-        }
-    }, 1000);
-
-    draw();
-}
-
-function resetGame(){
-    gameState.isRunning = false;
-    clearInterval(gameState.frameTimer);
-    clearInterval(gameState.gameTimer);
-    gameState.snake = [];
-    gameState.food = null;
-    gameState.blueFood = null;
-    gameState.blueLogicActive = false;
-    gameState.blueWaitCount = 0;
-    gameState.blueAliveCount = 0;
-    scoreDom.innerText =0;
-    timerDom.innerText =0;
-    draw();
-}
-
-// 修复方向键判断逻辑
-document.addEventListener('keydown',e=>{
-    if(!gameState.isRunning) return;
-    const dx = gameState.dx;
-    const dy = gameState.dy;
-    switch(e.key){
-        case "ArrowUp":
-            if(dy !== 1){ gameState.dx=0; gameState.dy=-1; }
-            break;
-        case "ArrowDown":
-            if(dy !== -1){ gameState.dx=0; gameState.dy=1; }
-            break;
-        case "ArrowLeft":
-            if(dx !== -1){ gameState.dx=-1; gameState.dy=0; }
-            break;
-        case "ArrowRight":
-            if(dx !== 1){ gameState.dx=1; gameState.dy=0; }
-            break;
+        }, 1000);
+        draw();
     }
-})
 
-//页面加载执行排行榜，就算报错也不会影响游戏
-renderRank();
-draw();
+    // 重置游戏
+    function resetGame(){
+        gameState.isRunning = false;
+        clearInterval(gameState.frameTimer);
+        clearInterval(gameState.gameTimer);
+        gameState.snake = [];
+        gameState.food = null;
+        gameState.blueFood = null;
+        gameState.blueLogicActive = false;
+        gameState.blueWaitCount = 0;
+        gameState.blueAliveCount = 0;
+        scoreDom.innerText =0;
+        timerDom.innerText =0;
+        draw();
+    }
+
+    // 键盘方向控制（修复左右转向判断）
+    document.addEventListener('keydown',e=>{
+        if(!gameState.isRunning) return;
+        const dx = gameState.dx;
+        const dy = gameState.dy;
+        switch(e.key){
+            case "ArrowUp":
+                if(dy !== 1){ gameState.dx=0; gameState.dy=-1; }
+                break;
+            case "ArrowDown":
+                if(dy !== -1){ gameState.dx=0; gameState.dy=1; }
+                break;
+            case "ArrowLeft":
+                if(dx !== -1){ gameState.dx=-1; gameState.dy=0; }
+                break;
+            case "ArrowRight":
+                if(dx !== 1){ gameState.dx=1; }
+                break;
+        }
+    });
+
+    // 【修复2：函数定义完成后再绑定点击事件】
+    startBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+
+    // 页面初始化绘制空白画布+加载排行榜
+    draw();
+    renderRank();
+};
 </script>
 </body>
 </html>
