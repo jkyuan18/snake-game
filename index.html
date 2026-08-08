@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>贪吃蛇游戏（联网排行榜）</title>
+    <title>贪吃蛇游戏（联网排行榜·修复按键Bug）</title>
     <!-- 引入Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -95,7 +95,8 @@
             分数：<span id="score">0</span> |
             游戏时长：<span id="timer">0</span>秒
         </div>
-        <canvas id="gameCanvas"></canvas>
+        <!-- 修复2：增加tabindex允许canvas获取键盘焦点 -->
+        <canvas id="gameCanvas" tabindex="0"></canvas>
         <div class="control-area">
             <select id="difficultySelect">
                 <option value="easy">简单（无障碍物）</option>
@@ -107,7 +108,6 @@
         </div>
         <div class="info-text">操作：键盘方向键 ↑ ↓ ← →</div>
     </div>
-
     <div class="rank-panel">
         <div class="rank-block">
             <h4>🥉简单排行榜</h4>
@@ -122,15 +122,13 @@
             <div id="rankHard">加载中...</div>
         </div>
     </div>
-
 <script>
-// ======================在这里填入你的Supabase信息======================
+// ======================填入你的Supabase信息======================
 const SUPABASE_URL = "https://sytrcvwyycapxjgbmobm.supabase.co/rest/v1/";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dHJjdnd5eWNhcHhqZ2Jtb2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxNzQzNDcsImV4cCI6MjEwMTc1MDM0N30.fDrNuJ1C61CVDB7aEgO2fquIi8LT9l-k-VHbFKt6k60";
 // =====================================================================
 const { createClient } = supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreDom = document.getElementById('score');
@@ -142,6 +140,9 @@ const rankEasyDom = document.getElementById('rankEasy');
 const rankMiddleDom = document.getElementById('rankMiddle');
 const rankHardDom = document.getElementById('rankHard');
 
+// 修复2：点击画布自动获取焦点，保证键盘稳定响应
+canvas.addEventListener('click', () => canvas.focus());
+
 //地图 50*75
 const GRID_WIDTH = 50;
 const GRID_HEIGHT = 75;
@@ -149,7 +150,6 @@ canvas.width = 1000;
 canvas.height = 1500;
 const CELL_W = canvas.width / GRID_WIDTH;
 const CELL_H = canvas.height / GRID_HEIGHT;
-
 const DIFF_CONFIG = {
     easy: { baseDelay:180, obstacles:[] },
     middle: {
@@ -169,7 +169,6 @@ const DIFF_CONFIG = {
         ]
     }
 };
-
 let gameState = {
     isRunning: false,
     snake: [],
@@ -188,7 +187,6 @@ let gameState = {
     blueWaitCount:0,
     blueAliveCount:0
 }
-
 // ==========云端排行榜函数（异步请求数据库）==========
 async function renderRank(){
     async function getRank(diff){
@@ -203,7 +201,6 @@ async function renderRank(){
     const easyList = await getRank("easy");
     const middleList = await getRank("middle");
     const hardList = await getRank("hard");
-
     function renderOne(dom, list){
         dom.innerHTML = "";
         if(list.length ===0){
@@ -218,276 +215,4 @@ async function renderRank(){
         })
     }
     renderOne(rankEasyDom, easyList);
-    renderOne(rankMiddleDom, middleList);
-    renderOne(rankHardDom, hardList);
-}
-
-async function trySaveScore(newScore,diffKey){
-    if(newScore <=0) return;
-    let name = prompt("恭喜！提交分数到排行榜，请输入你的名字：","玩家");
-    if(!name) return;
-    //提交分数到云端数据库
-    const {error} = await supabase.from('snake_rank').insert([
-        {difficulty:diffKey, name:name, score:newScore}
-    ]);
-    if(error){
-        alert("提交分数失败："+error.message);
-    }
-    await renderRank();
-}
-
-//蛇相关逻辑
-function initSnakeRandom(){
-    gameState.snake = [];
-    let headX, headY;
-    while(true){
-        headX = Math.floor(Math.random() * GRID_WIDTH);
-        headY = Math.floor(Math.random() * GRID_HEIGHT);
-        if(!isBlockPos(headX, headY)) break;
-    }
-    const dirs = [ {dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1} ];
-    const randDir = dirs[Math.floor(Math.random()*4)];
-    gameState.dx = randDir.dx;
-    gameState.dy = randDir.dy;
-
-    let segX = headX;
-    let segY = headY;
-    const backDx = -randDir.dx;
-    const backDy = -randDir.dy;
-    for(let i=0;i<4;i++){
-        gameState.snake.push({x:segX, y:segY});
-        segX += backDx;
-        segY += backDy;
-    }
-}
-
-function isBlockPos(x,y){
-    if(x<0||x>=GRID_WIDTH||y<0||y>=GRID_HEIGHT) return true;
-    for(let obs of gameState.obstacles){
-        if(obs.x ===x && obs.y ===y) return true;
-    }
-    for(let seg of gameState.snake){
-        if(seg.x ===x && seg.y ===y) return true;
-    }
-    return false;
-}
-
-function spawnFood(){
-    let x,y;
-    do{
-        x = Math.floor(Math.random() * GRID_WIDTH);
-        y = Math.floor(Math.random() * GRID_HEIGHT);
-    }while(isBlockPos(x,y));
-    gameState.food = {x,y};
-}
-function spawnBlueFood(){
-    let x,y;
-    do{
-        x = Math.floor(Math.random() * GRID_WIDTH);
-        y = Math.floor(Math.random() * GRID_HEIGHT);
-    }while(isBlockPos(x,y));
-    gameState.blueFood = {x,y};
-}
-
-function draw(){
-    ctx.fillStyle="#000000";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    ctx.fillStyle="#777777";
-    for(let obs of gameState.obstacles){
-        ctx.fillRect(obs.x*CELL_W, obs.y*CELL_H, CELL_W, CELL_H);
-    }
-
-    for(let i=0;i<gameState.snake.length;i++){
-        const seg = gameState.snake[i];
-        const px = seg.x * CELL_W;
-        const py = seg.y * CELL_H;
-        const padW = CELL_W * 0.15;
-        const padH = CELL_H * 0.15;
-        const sizeW = CELL_W - padW*2;
-        const sizeH = CELL_H - padH*2;
-        if(i ===0){
-            ctx.fillStyle="#76ff8c";
-        }else{
-            ctx.fillStyle="#28b952";
-        }
-        ctx.beginPath();
-        ctx.roundRect(px+padW, py+padH, sizeW, sizeH, Math.min(sizeW,sizeH)*0.45);
-        ctx.fill();
-    }
-
-    if(gameState.food){
-        ctx.fillStyle="#ff3333";
-        ctx.beginPath();
-        const cx = gameState.food.x * CELL_W + CELL_W/2;
-        const cy = gameState.food.y * CELL_H + CELL_H/2;
-        const r = Math.min(CELL_W,CELL_H) * 0.42;
-        ctx.arc(cx, cy, r,0,Math.PI*2);
-        ctx.fill();
-    }
-
-    if(gameState.blueFood){
-        ctx.fillStyle="#33aaff";
-        ctx.beginPath();
-        const cx = gameState.blueFood.x * CELL_W + CELL_W/2;
-        const cy = gameState.blueFood.y * CELL_H + CELL_H/2;
-        const r = Math.min(CELL_W,CELL_H) * 0.42;
-        ctx.arc(cx, cy, r,0,Math.PI*2);
-        ctx.fill();
-    }
-}
-
-async function gameOver(){
-    gameState.isRunning = false;
-    clearInterval(gameState.frameTimer);
-    clearInterval(gameState.gameTimer);
-    alert(`游戏结束！得分：${gameState.score}`);
-    await trySaveScore(gameState.score, gameState.currentDifficulty);
-}
-
-function gameFrame(){
-    if(!gameState.isRunning) return;
-    const head = gameState.snake[0];
-    const newHead = {
-        x: head.x + gameState.dx,
-        y: head.y + gameState.dy
-    }
-
-    if(isBlockPos(newHead.x, newHead.y)){
-        gameOver();
-        return;
-    }
-    for(let seg of gameState.snake){
-        if(newHead.x === seg.x && newHead.y === seg.y){
-            gameOver();
-            return;
-        }
-    }
-
-    gameState.snake.unshift(newHead);
-
-    let ateFood = false;
-    if(gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y){
-        gameState.score += 1;
-        gameState.growSpeedCounter += 1;
-        ateFood = true;
-        spawnFood();
-        if(gameState.growSpeedCounter %5 === 0){
-            if(gameState.currentDelay >40){
-                gameState.currentDelay -=10;
-                clearInterval(gameState.frameTimer);
-                gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
-            }
-        }
-    }
-    if(gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y){
-        gameState.score +=5;
-        ateFood = true;
-        gameState.blueFood = null;
-        gameState.blueWaitCount = 0;
-    }
-
-    if(!ateFood){
-        gameState.snake.pop();
-    }
-
-    scoreDom.innerText = gameState.score;
-    draw();
-}
-
-function startGame(){
-    if(gameState.isRunning) return;
-    const diffKey = diffSelect.value;
-    gameState.currentDifficulty = diffKey;
-    const diff = DIFF_CONFIG[diffKey];
-    gameState.obstacles = [...diff.obstacles];
-    gameState.currentDelay = diff.baseDelay;
-
-    initSnakeRandom();
-    spawnFood();
-    gameState.blueFood = null;
-    gameState.score = 0;
-    gameState.growSpeedCounter = 0;
-    gameState.isRunning = true;
-    gameState.startTime = Date.now();
-    gameState.blueLogicActive = false;
-    gameState.blueWaitCount = 0;
-    gameState.blueAliveCount = 0;
-
-    scoreDom.innerText = 0;
-    timerDom.innerText =0;
-
-    gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
-
-    gameState.gameTimer = setInterval(()=>{
-        const sec = Math.floor((Date.now() - gameState.startTime)/1000);
-        timerDom.innerText = sec;
-
-        if(sec >= 30){
-            gameState.blueLogicActive = true;
-        }
-        if(!gameState.blueLogicActive) return;
-
-        if(gameState.blueFood === null){
-            gameState.blueWaitCount +=1;
-            if(gameState.blueWaitCount >= 30){
-                spawnBlueFood();
-                gameState.blueAliveCount = 0;
-                gameState.blueWaitCount = 0;
-            }
-        }else{
-            gameState.blueAliveCount +=1;
-            if(gameState.blueAliveCount >= 20){
-                gameState.blueFood = null;
-                gameState.blueWaitCount = 0;
-            }
-        }
-    }, 1000);
-
-    draw();
-}
-
-function resetGame(){
-    gameState.isRunning = false;
-    clearInterval(gameState.frameTimer);
-    clearInterval(gameState.gameTimer);
-    gameState.snake = [];
-    gameState.food = null;
-    gameState.blueFood = null;
-    gameState.blueLogicActive = false;
-    gameState.blueWaitCount = 0;
-    gameState.blueAliveCount = 0;
-    scoreDom.innerText =0;
-    timerDom.innerText =0;
-    draw();
-}
-
-document.addEventListener('keydown',e=>{
-    if(!gameState.isRunning) return;
-    const dx = gameState.dx;
-    const dy = gameState.dy;
-    switch(e.key){
-        case "ArrowUp":
-            if(dy !== 1){ gameState.dx=0; gameState.dy=-1; }
-            break;
-        case "ArrowDown":
-            if(dy !== -1){ gameState.dx=0; gameState.dy=1; }
-            break;
-        case "ArrowLeft":
-            if(dx !== 1){ gameState.dx=-1; gameState.dy=0; }
-            break;
-        case "ArrowRight":
-            if(dx !== -1){ gameState.dx=1; gameState.dy=0; }
-            break;
-    }
-})
-
-startBtn.addEventListener('click', startGame);
-resetBtn.addEventListener('click', resetGame);
-
-//页面加载读取云端排行榜
-renderRank();
-draw();
-</script>
-</body>
-</html>
+    renderOne(r
