@@ -375,6 +375,21 @@ window.onload = async function() {
 
     // 游戏帧更新
     function gameFrame(){
+    if(gameState.dx !== 0 && gameState.dy !== 0){
+    // 优先保留横向运动，清空纵向；若横向为0则保留纵向
+    if(gameState.dx !== 0){
+        gameState.dy = 0;
+    }else{
+        gameState.dx = 0;
+    }
+    }
+    // ==========================================
+    if(!gameState.isRunning) return;
+    const head = gameState.snake[0];
+    const newHead = {
+        x: head.x + gameState.dx,
+        y: head.y + gameState.dy
+    };
         if(!gameState.isRunning) return;
         const head = gameState.snake[0];
         const newHead = {
@@ -494,41 +509,33 @@ window.onload = async function() {
         draw();
     }
 
-    // 键盘方向控制（修复左右转向判断）
-    // 修复后的键盘方向控制（完全解决反向撞身、斜走bug）
-document.addEventListener('keydown',e=>{
-    if(!gameState.isRunning) return;
-    const dx = gameState.dx;
-    const dy = gameState.dy;
-    switch(e.key){
-        case "ArrowLeft":
-            // 水平移动，清空纵向速度，禁止直接向右反向
-            if(dx !== 1){
-                gameState.dx = -1;
-                gameState.dy = 0;
-            }
-            break;
-        case "ArrowRight":
-            // 水平移动，清空纵向速度，禁止直接向左反向
-            if(dx !== -1){
-                gameState.dx = 1;
-                gameState.dy = 0;
-            }
-            break;
-        case "ArrowUp":
-            // 垂直移动，清空横向速度，禁止直接向下反向
-            if(dy !== 1){
-                gameState.dy = -1;
-                gameState.dx = 0;
-            }
-            break;
-        case "ArrowDown":
-            // 垂直移动，清空横向速度，禁止直接向上反向
-            if(dy !== -1){
-                gameState.dy = 1;
-                gameState.dx = 0;
-            }
-            break;
+// 修复版键盘控制：强制单轴移动，禁止反向、禁止斜向
+document.addEventListener('keydown', e => {
+    if (!gameState.isRunning) return;
+    const { dx, dy } = gameState;
+    // 左右键：只修改横向，纵向强制归零
+    if (e.key === "ArrowLeft") {
+        if (dx !== 1) { // 禁止直接向右掉头
+            gameState.dx = -1;
+            gameState.dy = 0;
+        }
+    } else if (e.key === "ArrowRight") {
+        if (dx !== -1) { // 禁止直接向左掉头
+            gameState.dx = 1;
+            gameState.dy = 0;
+        }
+    }
+    // 上下键：只修改纵向，横向强制归零
+    else if (e.key === "ArrowUp") {
+        if (dy !== 1) { // 禁止直接向下掉头
+            gameState.dy = -1;
+            gameState.dx = 0;
+        }
+    } else if (e.key === "ArrowDown") {
+        if (dy !== -1) { // 禁止直接向上掉头
+            gameState.dy = 1;
+            gameState.dx = 0;
+        }
     }
 });
 
