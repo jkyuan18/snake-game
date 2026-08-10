@@ -375,28 +375,21 @@ window.onload = async function() {
 
     // 游戏帧更新
     function gameFrame(){
-    if(gameState.dx !== 0 && gameState.dy !== 0){
-    // 优先保留横向运动，清空纵向；若横向为0则保留纵向
-    if(gameState.dx !== 0){
-        gameState.dy = 0;
-    }else{
-        gameState.dx = 0;
-    }
-    }
-    // ==========================================
-    if(!gameState.isRunning) return;
-        
-    const head = gameState.snake[0];
-    const newHead = {
-        x: head.x + gameState.dx,
-        y: head.y + gameState.dy
-    };
+        if(gameState.dx !== 0 && gameState.dy !== 0){
+        // 优先保留横向运动，清空纵向；若横向为0则保留纵向
+        if(gameState.dx !== 0){
+            gameState.dy = 0;
+        }else{
+            gameState.dx = 0;
+        }
+        }
+        // ==========================================
         if(!gameState.isRunning) return;
+        const head = gameState.snake[0];
         const newHead = {
             x: head.x + gameState.dx,
             y: head.y + gameState.dy
         };
-
         // 撞墙/撞障碍/撞自身判定
         if(isBlockPos(newHead.x, newHead.y)){
             gameOver();
