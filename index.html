@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>贪吃蛇游戏（联网排行榜修复）</title>
+    <title>贪吃蛇游戏（增强版）</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -18,78 +18,191 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap:20px;
+            gap: 20px;
             height: 100vh;
-            overflow:hidden;
+            overflow: hidden;
             flex-wrap: wrap;
-            padding:10px;
+            padding: 10px;
         }
-        .game-wrap{
-            display:flex;
-            flex-direction:column;
-            align-items:center;
+        .game-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        #gameCanvas{
-            border:3px solid #42b983;
-            background:#000;
-            max-width:600px;
-            max-height:calc(100vh - 200px);
+        #gameCanvas {
+            border: 3px solid #42b983;
+            background: #000;
+            max-width: 600px;
+            max-height: calc(100vh - 200px);
         }
-        .control-area{
-            margin-top:10px;
-            display:flex;
-            gap:8px;
-            align-items:center;
+        .control-area {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
             flex-wrap: wrap;
-            justify-content:center;
+            justify-content: center;
         }
-        button{
-            padding:7px 14px;
-            font-size:15px;
-            border:none;
-            border-radius:4px;
-            cursor:pointer;
+        button {
+            padding: 7px 14px;
+            font-size: 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
         }
-        #startBtn{
-            background:#28c76f;
-            color:#000;
+        button:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
         }
-        #resetBtn{
-            background:#ff4d4f;
-            color:#fff;
+        #startBtn { background: #28c76f; color: #000; }
+        #resetBtn { background: #ff4d4f; color: #fff; }
+        #pauseBtn { background: #ffa500; color: #000; }
+        #settingsBtn { background: #73c0ff; color: #000; }
+        select {
+            padding: 6px;
+            font-size: 15px;
+            background: #222;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
         }
-        select{
-            padding:6px;
-            font-size:15px;
+        .info-text {
+            margin: 8px 0;
+            font-size: 16px;
         }
-        .info-text{
-            margin:8px 0;
-            font-size:16px;
+        .rank-panel {
+            border: 1px solid #444;
+            padding: 12px;
+            min-width: 220px;
+            max-height: 85vh;
+            overflow-y: auto;
         }
-        .rank-panel{
-            border:1px solid #444;
-            padding:12px;
-            min-width:220px;
-            max-height:85vh;
-            overflow-y:auto;
+        .rank-block {
+            margin-bottom: 14px;
         }
-        .rank-block{
-            margin-bottom:14px;
+        .rank-block h4 {
+            margin-bottom: 6px;
+            color: #73c0ff;
         }
-        .rank-block h4{
-            margin-bottom:6px;
-            color:#73c0ff;
-        }
-        .rank-item{
-            padding:2px 0;
-            font-size:14px;
+        .rank-item {
+            padding: 2px 0;
+            font-size: 14px;
             border-bottom: 1px solid #222;
         }
+
+        /* ---------- 设置面板 ---------- */
+        #settingsPanel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            padding: 25px 30px;
+            border-radius: 12px;
+            border: 2px solid #42b983;
+            z-index: 100;
+            min-width: 280px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        #settingsPanel h3 {
+            margin-bottom: 15px;
+            color: #73c0ff;
+            text-align: center;
+        }
+        #settingsPanel label {
+            display: block;
+            margin: 10px 0 5px;
+            font-size: 14px;
+            color: #ccc;
+        }
+        #settingsPanel input[type="range"] {
+            width: 100%;
+            background: #333;
+            accent-color: #42b983;
+        }
+        #settingsPanel select {
+            width: 100%;
+            padding: 5px;
+            margin-top: 4px;
+        }
+        #settingsClose {
+            display: block;
+            margin: 18px auto 0;
+            background: #666;
+            color: #fff;
+            padding: 6px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #settingsClose:hover {
+            background: #888;
+        }
+
+        /* ---------- 结算模态框 ---------- */
+        #gameOverModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            backdrop-filter: blur(4px);
+        }
+        #gameOverModal .modal-box {
+            background: #1a1a1a;
+            padding: 30px 40px;
+            border-radius: 12px;
+            border: 2px solid #42b983;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        #gameOverModal .modal-box h2 {
+            color: #ff4d4f;
+            margin-bottom: 10px;
+        }
+        #gameOverModal .modal-box .score {
+            font-size: 28px;
+            margin: 15px 0;
+            color: #fff;
+        }
+        #gameOverModal .modal-box .difficulty {
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        #gameOverModal .modal-box button {
+            margin: 5px 8px;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #modalRestartBtn {
+            background: #28c76f;
+            color: #000;
+        }
+        #modalCloseBtn {
+            background: #666;
+            color: #fff;
+        }
+        #modalRestartBtn:hover { background: #3ddc84; }
+        #modalCloseBtn:hover { background: #888; }
+
+        /* 辅助类 */
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="game-wrap">
-        <h2>🐍贪吃蛇游戏</h2>
+        <h2>🐍 贪吃蛇游戏</h2>
         <div class="info-text">
             分数：<span id="score">0</span> |
             游戏时长：<span id="timer">0</span>秒
@@ -102,444 +215,573 @@
                 <option value="hard">困难（横竖障碍）</option>
             </select>
             <button id="startBtn">开启游戏</button>
+            <button id="pauseBtn">⏸ 暂停</button>
             <button id="resetBtn">重置</button>
+            <button id="settingsBtn">⚙ 设置</button>
         </div>
-        <div class="info-text">操作：键盘方向键 ↑ ↓ ← →</div>
+        <div class="info-text">操作：键盘方向键 ↑ ↓ ← → &nbsp;|&nbsp; ESC 暂停/继续</div>
     </div>
+
     <div class="rank-panel">
         <div class="rank-block">
-            <h4>🥉简单排行榜</h4>
+            <h4>🥉 简单排行榜</h4>
             <div id="rankEasy">加载中...</div>
         </div>
         <div class="rank-block">
-            <h4>🥈中等排行榜</h4>
+            <h4>🥈 中等排行榜</h4>
             <div id="rankMiddle">加载中...</div>
         </div>
         <div class="rank-block">
-            <h4>🥇困难排行榜</h4>
+            <h4>🥇 困难排行榜</h4>
             <div id="rankHard">加载中...</div>
         </div>
     </div>
 
-<script>
-// Supabase 配置（保留你原有密钥）
-const SUPABASE_URL = "https://sytrcvwyycapxjgbmobm.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dHJjdnd5eWNhcHhqZ2Jtb2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxNzQzNDcsImV4cCI6MjEwMTc1MDM0N30.fDrNuJ1C61CVDB7aEgO2fquIi8LT9l-k-VHbFKt6k60";
+    <!-- 设置面板 -->
+    <div id="settingsPanel">
+        <h3>⚙ 设置</h3>
+        <label>🔊 音效音量：
+            <input type="range" id="sfxVolume" min="0" max="100" value="30">
+        </label>
+        <label>🎵 背景音乐音量（预留）：
+            <input type="range" id="bgmVolume" min="0" max="100" value="20" disabled>
+        </label>
+        <label>🐍 初始速度：
+            <select id="speedSelect">
+                <option value="220">慢</option>
+                <option value="180" selected>中</option>
+                <option value="120">快</option>
+            </select>
+        </label>
+        <button id="settingsClose">关闭</button>
+    </div>
 
-// 等待页面、CDN、DOM全部加载完成再执行代码
-window.onload = async function() {
-    // 【核心修复1：改名supabaseClient，避开全局supabase重名冲突】
-    const { createClient } = window.supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { storage: null } // 消除浏览器追踪警告
-    });
+    <!-- 结算模态框 -->
+    <div id="gameOverModal">
+        <div class="modal-box">
+            <h2>💀 游戏结束</h2>
+            <div class="score">得分：<span id="finalScore">0</span></div>
+            <div class="difficulty">难度：<span id="finalDifficulty">简单</span></div>
+            <button id="modalRestartBtn">🔄 再来一局</button>
+            <button id="modalCloseBtn">关闭</button>
+        </div>
+    </div>
 
-    // DOM 元素缓存
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreDom = document.getElementById('score');
-    const timerDom = document.getElementById('timer');
-    const startBtn = document.getElementById('startBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const diffSelect = document.getElementById('difficultySelect');
-    const rankEasyDom = document.getElementById('rankEasy');
-    const rankMiddleDom = document.getElementById('rankMiddle');
-    const rankHardDom = document.getElementById('rankHard');
+    <script>
+    // ==================== Supabase 配置 ====================
+    const SUPABASE_URL = "https://sytrcvwyycapxjgbmobm.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dHJjdnd5eWNhcHhqZ2Jtb2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxNzQzNDcsImV4cCI6MjEwMTc1MDM0N30.fDrNuJ1C61CVDB7aEgO2fquIi8LT9l-k-VHbFKt6k60";
 
-    // 点击画布自动获取键盘焦点
-    canvas.addEventListener('click', () => canvas.focus());
+    // ==================== 等待页面加载 ====================
+    window.onload = async function() {
+        const { createClient } = window.supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { storage: null }
+        });
 
-    // 地图参数 50宽75高
-    const GRID_WIDTH = 50;
-    const GRID_HEIGHT = 75;
-    canvas.width = 1000;
-    canvas.height = 1500;
-    const CELL_W = canvas.width / GRID_WIDTH;
-    const CELL_H = canvas.height / GRID_HEIGHT;
+        // ---------- DOM 缓存 ----------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDom = document.getElementById('score');
+        const timerDom = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const settingsClose = document.getElementById('settingsClose');
+        const sfxVolumeInput = document.getElementById('sfxVolume');
+        const speedSelect = document.getElementById('speedSelect');
+        const diffSelect = document.getElementById('difficultySelect');
+        const rankEasyDom = document.getElementById('rankEasy');
+        const rankMiddleDom = document.getElementById('rankMiddle');
+        const rankHardDom = document.getElementById('rankHard');
+        const modalOverlay = document.getElementById('gameOverModal');
+        const finalScore = document.getElementById('finalScore');
+        const finalDifficulty = document.getElementById('finalDifficulty');
+        const modalRestart = document.getElementById('modalRestartBtn');
+        const modalClose = document.getElementById('modalCloseBtn');
 
-    // 难度配置
-    const DIFF_CONFIG = {
-        easy: { baseDelay:180, obstacles:[] },
-        middle: {
-            baseDelay:140,
-            obstacles: [
-                {x:23,y:36},{x:24,y:36},{x:25,y:36},{x:26,y:36},
-                {x:23,y:37},{x:24,y:37},{x:25,y:37},{x:26,y:37}
-            ]
-        },
-        hard: {
-            baseDelay:110,
-            obstacles: [
-                {x:23,y:36},{x:24,y:36},{x:25,y:36},{x:26,y:36},
-                {x:23,y:37},{x:24,y:37},{x:25,y:37},{x:26,y:37},
-                {x:24,y:34},{x:24,y:35},{x:24,y:38},{x:24,y:39},
-                {x:25,y:34},{x:25,y:35},{x:25,y:38},{x:25,y:39}
-            ]
-        }
-    };
+        canvas.addEventListener('click', () => canvas.focus());
 
-    // 游戏全局状态
-    let gameState = {
-        isRunning: false,
-        snake: [],
-        food: null,
-        blueFood: null,
-        dx: 1, dy:0,
-        score:0,
-        startTime:0,
-        gameTimer:null,
-        frameTimer:null,
-        currentDelay: 180,
-        growSpeedCounter:0,
-        obstacles:[],
-        currentDifficulty:"easy",
-        blueLogicActive: false,
-        blueWaitCount:0,
-        blueAliveCount:0
-    };
+        // ---------- 地图参数 ----------
+        const GRID_WIDTH = 50;
+        const GRID_HEIGHT = 75;
+        canvas.width = 1000;
+        canvas.height = 1500;
+        const CELL_W = canvas.width / GRID_WIDTH;
+        const CELL_H = canvas.height / GRID_HEIGHT;
 
-    // ========== 排行榜接口函数（全部改用supabaseClient）==========
-    async function renderRank(){
-        try{
-            async function getRank(diff){
-                const {data,error} = await supabaseClient
-                    .from('snake_rank')
-                    .select('name,score')
-                    .eq('difficulty', diff)
-                    .order('score',{ascending:false})
-                    .limit(10);
-                if(error) throw error;
-                return data || [];
+        // ---------- 难度配置 ----------
+        const DIFF_CONFIG = {
+            easy: { baseDelay: 180, obstacles: [] },
+            middle: {
+                baseDelay: 140,
+                obstacles: [
+                    { x: 23, y: 36 }, { x: 24, y: 36 }, { x: 25, y: 36 }, { x: 26, y: 36 },
+                    { x: 23, y: 37 }, { x: 24, y: 37 }, { x: 25, y: 37 }, { x: 26, y: 37 }
+                ]
+            },
+            hard: {
+                baseDelay: 110,
+                obstacles: [
+                    { x: 23, y: 36 }, { x: 24, y: 36 }, { x: 25, y: 36 }, { x: 26, y: 36 },
+                    { x: 23, y: 37 }, { x: 24, y: 37 }, { x: 25, y: 37 }, { x: 26, y: 37 },
+                    { x: 24, y: 34 }, { x: 24, y: 35 }, { x: 24, y: 38 }, { x: 24, y: 39 },
+                    { x: 25, y: 34 }, { x: 25, y: 35 }, { x: 25, y: 38 }, { x: 25, y: 39 }
+                ]
             }
-            const easyList = await getRank("easy");
-            const middleList = await getRank("middle");
-            const hardList = await getRank("hard");
+        };
 
-            function renderOne(dom, list){
-                dom.innerHTML = "";
-                if(list.length ===0){
-                    dom.innerHTML = "<div>暂无记录</div>";
-                    return;
+        // ---------- 游戏状态 ----------
+        let gameState = {
+            isRunning: false,
+            snake: [],
+            food: null,
+            blueFood: null,
+            dx: 1, dy: 0,
+            score: 0,
+            startTime: 0,
+            gameTimer: null,
+            frameTimer: null,
+            currentDelay: 180,
+            growSpeedCounter: 0,
+            obstacles: [],
+            currentDifficulty: "easy",
+            blueLogicActive: false,
+            blueWaitCount: 0,
+            blueAliveCount: 0,
+            pauseStart: 0    // 用于暂停计时补偿
+        };
+
+        // ---------- 暂停状态 ----------
+        let paused = false;
+
+        // ---------- 音效系统 ----------
+        let audioCtx = null;
+        let sfxVolume = 0.3; // 默认30%
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBeep(freq, duration, volume) {
+            try {
+                initAudio();
+                const vol = volume !== undefined ? volume : sfxVolume;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                // 静默失败（如浏览器限制）
+            }
+        }
+
+        function playRedSound() {
+            playBeep(800, 0.08);
+        }
+
+        function playBlueSound() {
+            playBeep(600, 0.07);
+            setTimeout(() => playBeep(600, 0.07), 100);
+        }
+
+        // ---------- 排行榜 ----------
+        async function renderRank() {
+            try {
+                async function getRank(diff) {
+                    const { data, error } = await supabaseClient
+                        .from('snake_rank')
+                        .select('name,score')
+                        .eq('difficulty', diff)
+                        .order('score', { ascending: false })
+                        .limit(10);
+                    if (error) throw error;
+                    return data || [];
                 }
-                list.forEach((item,idx)=>{
-                    const div = document.createElement('div');
-                    div.className = "rank-item";
-                    div.innerText = `${idx+1}. ${item.name} — ${item.score}分`;
-                    dom.appendChild(div);
-                })
+                const easyList = await getRank("easy");
+                const middleList = await getRank("middle");
+                const hardList = await getRank("hard");
+
+                function renderOne(dom, list) {
+                    dom.innerHTML = "";
+                    if (list.length === 0) {
+                        dom.innerHTML = "<div>暂无记录</div>";
+                        return;
+                    }
+                    list.forEach((item, idx) => {
+                        const div = document.createElement('div');
+                        div.className = "rank-item";
+                        div.innerText = `${idx+1}. ${item.name} — ${item.score}分`;
+                        dom.appendChild(div);
+                    });
+                }
+                renderOne(rankEasyDom, easyList);
+                renderOne(rankMiddleDom, middleList);
+                renderOne(rankHardDom, hardList);
+            } catch (err) {
+                console.error("排行榜加载失败：", err);
+                rankEasyDom.innerText = "加载失败";
+                rankMiddleDom.innerText = "加载失败";
+                rankHardDom.innerText = "加载失败";
             }
-            renderOne(rankEasyDom, easyList);
-            renderOne(rankMiddleDom, middleList);
-            renderOne(rankHardDom, hardList);
-        }catch(err){
-            console.error("排行榜加载失败：",err);
-            rankEasyDom.innerText = "加载失败";
-            rankMiddleDom.innerText = "加载失败";
-            rankHardDom.innerText = "加载失败";
-        }
-    }
-
-    async function trySaveScore(newScore,diffKey){
-        if(newScore <=0) return;
-        let name = prompt("恭喜！提交分数到排行榜，请输入你的名字：","玩家");
-        if(!name) return;
-        try{
-            const {error} = await supabaseClient.from('snake_rank').insert([
-                {difficulty:diffKey, name:name, score:newScore}
-            ]);
-            if(error) throw error;
-            await renderRank();
-        }catch(err){
-            alert("分数提交失败："+err.message);
-        }
-    }
-
-    // 随机生成初始蛇
-    function initSnakeRandom(){
-        gameState.snake = [];
-        let headX, headY;
-        while(true){
-            headX = Math.floor(Math.random() * GRID_WIDTH);
-            headY = Math.floor(Math.random() * GRID_HEIGHT);
-            if(!isBlockPos(headX, headY)) break;
-        }
-        const dirs = [ {dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1} ];
-        const randDir = dirs[Math.floor(Math.random()*4)];
-        gameState.dx = randDir.dx;
-        gameState.dy = randDir.dy;
-
-        let segX = headX;
-        let segY = headY;
-        const backDx = -randDir.dx;
-        const backDy = -randDir.dy;
-        for(let i=0;i<4;i++){
-            gameState.snake.push({x:segX, y:segY});
-            segX += backDx;
-            segY += backDy;
-        }
-    }
-
-    // 碰撞判断
-    function isBlockPos(x,y){
-        if(x<0||x>=GRID_WIDTH||y<0||y>=GRID_HEIGHT) return true;
-        for(let obs of gameState.obstacles){
-            if(obs.x ===x && obs.y ===y) return true;
-        }
-        for(let seg of gameState.snake){
-            if(seg.x ===x && seg.y ===y) return true;
-        }
-        return false;
-    }
-
-    // 生成普通红点
-    function spawnFood(){
-        let x,y;
-        do{
-            x = Math.floor(Math.random() * GRID_WIDTH);
-            y = Math.floor(Math.random() * GRID_HEIGHT);
-        }while(isBlockPos(x,y));
-        gameState.food = {x,y};
-    }
-
-    // 生成蓝色特殊点
-    function spawnBlueFood(){
-        let x,y;
-        do{
-            x = Math.floor(Math.random() * GRID_WIDTH);
-            y = Math.floor(Math.random() * GRID_HEIGHT);
-        }while(isBlockPos(x,y));
-        gameState.blueFood = {x,y};
-    }
-
-    // 绘制画面
-    function draw(){
-        ctx.fillStyle="#000000";
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-
-        // 绘制障碍物
-        ctx.fillStyle="#777777";
-        for(let obs of gameState.obstacles){
-            ctx.fillRect(obs.x*CELL_W, obs.y*CELL_H, CELL_W, CELL_H);
         }
 
-        // 绘制蛇（头亮绿、身体深绿圆角）
-        for(let i=0;i<gameState.snake.length;i++){
-            const seg = gameState.snake[i];
-            const px = seg.x * CELL_W;
-            const py = seg.y * CELL_H;
-            const padW = CELL_W * 0.15;
-            const padH = CELL_H * 0.15;
-            const sizeW = CELL_W - padW*2;
-            const sizeH = CELL_H - padH*2;
-            if(i ===0){
-                ctx.fillStyle="#76ff8c";
-            }else{
-                ctx.fillStyle="#28b952";
+        async function trySaveScore(newScore, diffKey) {
+            if (newScore <= 0) return;
+            let name = prompt("恭喜！提交分数到排行榜，请输入你的名字：", "玩家");
+            if (!name) return;
+            try {
+                const { error } = await supabaseClient.from('snake_rank').insert([
+                    { difficulty: diffKey, name: name, score: newScore }
+                ]);
+                if (error) throw error;
+                await renderRank();
+            } catch (err) {
+                alert("分数提交失败：" + err.message);
             }
-            ctx.beginPath();
-            ctx.roundRect(px+padW, py+padH, sizeW, sizeH, Math.min(sizeW,sizeH)*0.45);
-            ctx.fill();
         }
 
-        // 红色圆形食物
-        if(gameState.food){
-            ctx.fillStyle="#ff3333";
-            ctx.beginPath();
-            const cx = gameState.food.x * CELL_W + CELL_W/2;
-            const cy = gameState.food.y * CELL_H + CELL_H/2;
-            const r = Math.min(CELL_W,CELL_H) * 0.42;
-            ctx.arc(cx, cy, r,0,Math.PI*2);
-            ctx.fill();
+        // ---------- 游戏辅助函数 ----------
+        function isBlockPos(x, y) {
+            if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return true;
+            for (let obs of gameState.obstacles) {
+                if (obs.x === x && obs.y === y) return true;
+            }
+            for (let seg of gameState.snake) {
+                if (seg.x === x && seg.y === y) return true;
+            }
+            return false;
         }
 
-        // 蓝色圆形特殊点
-        if(gameState.blueFood){
-            ctx.fillStyle="#33aaff";
-            ctx.beginPath();
-            const cx = gameState.blueFood.x * CELL_W + CELL_W/2;
-            const cy = gameState.blueFood.y * CELL_H + CELL_H/2;
-            const r = Math.min(CELL_W,CELL_H) * 0.42;
-            ctx.arc(cx, cy, r,0,Math.PI*2);
-            ctx.fill();
+        function initSnakeRandom() {
+            gameState.snake = [];
+            let headX, headY;
+            while (true) {
+                headX = Math.floor(Math.random() * GRID_WIDTH);
+                headY = Math.floor(Math.random() * GRID_HEIGHT);
+                if (!isBlockPos(headX, headY)) break;
+            }
+            const dirs = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
+            const randDir = dirs[Math.floor(Math.random() * 4)];
+            gameState.dx = randDir.dx;
+            gameState.dy = randDir.dy;
+
+            let segX = headX, segY = headY;
+            const backDx = -randDir.dx, backDy = -randDir.dy;
+            for (let i = 0; i < 4; i++) {
+                gameState.snake.push({ x: segX, y: segY });
+                segX += backDx;
+                segY += backDy;
+            }
         }
-    }
 
-    // 游戏结束逻辑
-    async function gameOver(){
-        gameState.isRunning = false;
-        clearInterval(gameState.frameTimer);
-        clearInterval(gameState.gameTimer);
-        alert(`游戏结束！得分：${gameState.score}`);
-        await trySaveScore(gameState.score, gameState.currentDifficulty);
-    }
-
-    // 游戏帧更新
-    function gameFrame() {
-    // 强制单轴运动（防斜向）
-    if (gameState.dx !== 0 && gameState.dy !== 0) {
-        if (gameState.dx !== 0) {
-            gameState.dy = 0;
-        } else {
-            gameState.dx = 0;
+        function spawnFood() {
+            let x, y;
+            do {
+                x = Math.floor(Math.random() * GRID_WIDTH);
+                y = Math.floor(Math.random() * GRID_HEIGHT);
+            } while (isBlockPos(x, y));
+            gameState.food = { x, y };
         }
-    }
 
-    if (!gameState.isRunning) return;
-
-    // ✅ 唯一声明点
-    const head = gameState.snake[0];
-    const newHead = {
-        x: head.x + gameState.dx,
-        y: head.y + gameState.dy
-    };
-
-    // 撞墙/撞障碍/撞自身
-    if (isBlockPos(newHead.x, newHead.y)) {
-        gameOver();
-        return;
-    }
-    for (let seg of gameState.snake) {
-        if (newHead.x === seg.x && newHead.y === seg.y) {
-            gameOver();
-            return;
+        function spawnBlueFood() {
+            let x, y;
+            do {
+                x = Math.floor(Math.random() * GRID_WIDTH);
+                y = Math.floor(Math.random() * GRID_HEIGHT);
+            } while (isBlockPos(x, y));
+            gameState.blueFood = { x, y };
         }
-    }
 
-    gameState.snake.unshift(newHead);
-    let ateFood = false;
+        // ---------- 绘制 ----------
+        function draw() {
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 吃红点
-    if (gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y) {
-        gameState.score += 1;
-        gameState.growSpeedCounter += 1;
-        ateFood = true;
-        spawnFood();
-        if (gameState.growSpeedCounter % 5 === 0 && gameState.currentDelay > 40) {
-            gameState.currentDelay -= 10;
+            // 障碍
+            ctx.fillStyle = "#777777";
+            for (let obs of gameState.obstacles) {
+                ctx.fillRect(obs.x * CELL_W, obs.y * CELL_H, CELL_W, CELL_H);
+            }
+
+            // 蛇
+            for (let i = 0; i < gameState.snake.length; i++) {
+                const seg = gameState.snake[i];
+                const px = seg.x * CELL_W, py = seg.y * CELL_H;
+                const padW = CELL_W * 0.15, padH = CELL_H * 0.15;
+                const sizeW = CELL_W - padW * 2, sizeH = CELL_H - padH * 2;
+                ctx.fillStyle = (i === 0) ? "#76ff8c" : "#28b952";
+                // 使用 roundRect 如果支持，否则 fallback
+                if (ctx.roundRect) {
+                    ctx.beginPath();
+                    ctx.roundRect(px + padW, py + padH, sizeW, sizeH, Math.min(sizeW, sizeH) * 0.45);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(px + padW, py + padH, sizeW, sizeH);
+                }
+            }
+
+            // 红点
+            if (gameState.food) {
+                ctx.fillStyle = "#ff3333";
+                ctx.beginPath();
+                const cx = gameState.food.x * CELL_W + CELL_W / 2;
+                const cy = gameState.food.y * CELL_H + CELL_H / 2;
+                const r = Math.min(CELL_W, CELL_H) * 0.42;
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 蓝点
+            if (gameState.blueFood) {
+                ctx.fillStyle = "#33aaff";
+                ctx.beginPath();
+                const cx = gameState.blueFood.x * CELL_W + CELL_W / 2;
+                const cy = gameState.blueFood.y * CELL_H + CELL_H / 2;
+                const r = Math.min(CELL_W, CELL_H) * 0.42;
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ---------- 游戏结束 ----------
+        async function gameOver() {
+            gameState.isRunning = false;
             clearInterval(gameState.frameTimer);
-            gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+            clearInterval(gameState.gameTimer);
+            // 显示结算模态框
+            finalScore.textContent = gameState.score;
+            finalDifficulty.textContent = diffSelect.options[diffSelect.selectedIndex].text;
+            modalOverlay.style.display = 'flex';
+            await trySaveScore(gameState.score, gameState.currentDifficulty);
         }
-    }
 
-    // 吃蓝点
-    if (gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y) {
-        gameState.score += 5;
-        ateFood = true;
-        gameState.blueFood = null;
-        gameState.blueWaitCount = 0;
-    }
-
-    if (!ateFood) {
-        gameState.snake.pop();
-    }
-
-    scoreDom.innerText = gameState.score;
-    draw();
-}
-
-    // 开启游戏（函数提前定义，再绑定事件）
-    function startGame(){
-        if(gameState.isRunning) return;
-        const diffKey = diffSelect.value;
-        gameState.currentDifficulty = diffKey;
-        const diff = DIFF_CONFIG[diffKey];
-        gameState.obstacles = [...diff.obstacles];
-        gameState.currentDelay = diff.baseDelay;
-
-        initSnakeRandom();
-        spawnFood();
-        gameState.blueFood = null;
-        gameState.score = 0;
-        gameState.growSpeedCounter = 0;
-        gameState.isRunning = true;
-        gameState.startTime = Date.now();
-        gameState.blueLogicActive = false;
-        gameState.blueWaitCount = 0;
-        gameState.blueAliveCount = 0;
-
-        scoreDom.innerText = 0;
-        timerDom.innerText =0;
-
-        gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
-        gameState.gameTimer = setInterval(()=>{
-            const sec = Math.floor((Date.now() - gameState.startTime)/1000);
+        // ---------- 定时器滴答（每秒） ----------
+        function timerTick() {
+            const sec = Math.floor((Date.now() - gameState.startTime) / 1000);
             timerDom.innerText = sec;
-            if(sec >= 30) gameState.blueLogicActive = true;
-            if(!gameState.blueLogicActive) return;
+            if (sec >= 30) gameState.blueLogicActive = true;
+            if (!gameState.blueLogicActive) return;
 
-            // 蓝点规则：消失后等待30秒生成，存在20秒自动消失
-            if(gameState.blueFood === null){
-                gameState.blueWaitCount +=1;
-                if(gameState.blueWaitCount >= 30){
+            // 蓝点逻辑
+            if (gameState.blueFood === null) {
+                gameState.blueWaitCount += 1;
+                if (gameState.blueWaitCount >= 30) {
                     spawnBlueFood();
                     gameState.blueAliveCount = 0;
                     gameState.blueWaitCount = 0;
                 }
-            }else{
-                gameState.blueAliveCount +=1;
-                if(gameState.blueAliveCount >= 20){
+            } else {
+                gameState.blueAliveCount += 1;
+                if (gameState.blueAliveCount >= 20) {
                     gameState.blueFood = null;
                     gameState.blueWaitCount = 0;
                 }
             }
-        }, 1000);
+        }
+
+        // ---------- 游戏帧更新 ----------
+        function gameFrame() {
+            // 强制单轴
+            if (gameState.dx !== 0 && gameState.dy !== 0) {
+                if (gameState.dx !== 0) gameState.dy = 0;
+                else gameState.dx = 0;
+            }
+            if (!gameState.isRunning || paused) return;
+
+            const head = gameState.snake[0];
+            const newHead = {
+                x: head.x + gameState.dx,
+                y: head.y + gameState.dy
+            };
+
+            // 碰撞
+            if (isBlockPos(newHead.x, newHead.y)) {
+                gameOver();
+                return;
+            }
+            for (let seg of gameState.snake) {
+                if (newHead.x === seg.x && newHead.y === seg.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            gameState.snake.unshift(newHead);
+            let ateFood = false;
+
+            // 红点
+            if (gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y) {
+                gameState.score += 1;
+                gameState.growSpeedCounter += 1;
+                ateFood = true;
+                playRedSound();
+                spawnFood();
+                if (gameState.growSpeedCounter % 5 === 0 && gameState.currentDelay > 40) {
+                    gameState.currentDelay -= 10;
+                    clearInterval(gameState.frameTimer);
+                    gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+                }
+            }
+
+            // 蓝点
+            if (gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y) {
+                gameState.score += 5;
+                ateFood = true;
+                playBlueSound();
+                gameState.blueFood = null;
+                gameState.blueWaitCount = 0;
+            }
+
+            if (!ateFood) {
+                gameState.snake.pop();
+            }
+
+            scoreDom.innerText = gameState.score;
+            draw();
+        }
+
+        // ---------- 暂停切换 ----------
+        function togglePause() {
+            if (!gameState.isRunning) return;
+            paused = !paused;
+            pauseBtn.textContent = paused ? '▶ 继续' : '⏸ 暂停';
+            if (paused) {
+                // 暂停定时器
+                clearInterval(gameState.frameTimer);
+                clearInterval(gameState.gameTimer);
+                gameState.pauseStart = Date.now();
+            } else {
+                // 补偿时间
+                const pauseDuration = Date.now() - gameState.pauseStart;
+                gameState.startTime += pauseDuration;
+                // 重启定时器
+                gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+                gameState.gameTimer = setInterval(timerTick, 1000);
+            }
+        }
+
+        // ---------- 开始游戏 ----------
+        function startGame() {
+            if (gameState.isRunning) return;
+            const diffKey = diffSelect.value;
+            gameState.currentDifficulty = diffKey;
+            const diff = DIFF_CONFIG[diffKey];
+            gameState.obstacles = [...diff.obstacles];
+
+            // 速度：优先使用用户设置，否则用难度默认
+            const speedVal = parseInt(speedSelect.value);
+            gameState.currentDelay = isNaN(speedVal) ? diff.baseDelay : speedVal;
+
+            initSnakeRandom();
+            spawnFood();
+            gameState.blueFood = null;
+            gameState.score = 0;
+            gameState.growSpeedCounter = 0;
+            gameState.isRunning = true;
+            gameState.startTime = Date.now();
+            gameState.blueLogicActive = false;
+            gameState.blueWaitCount = 0;
+            gameState.blueAliveCount = 0;
+            paused = false;
+            pauseBtn.textContent = '⏸ 暂停';
+
+            scoreDom.innerText = 0;
+            timerDom.innerText = 0;
+            modalOverlay.style.display = 'none'; // 关闭可能打开的结算框
+
+            gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+            gameState.gameTimer = setInterval(timerTick, 1000);
+            draw();
+        }
+
+        // ---------- 重置 ----------
+        function resetGame() {
+            gameState.isRunning = false;
+            clearInterval(gameState.frameTimer);
+            clearInterval(gameState.gameTimer);
+            if (paused) {
+                paused = false;
+                pauseBtn.textContent = '⏸ 暂停';
+            }
+            gameState.snake = [];
+            gameState.food = null;
+            gameState.blueFood = null;
+            gameState.blueLogicActive = false;
+            gameState.blueWaitCount = 0;
+            gameState.blueAliveCount = 0;
+            scoreDom.innerText = 0;
+            timerDom.innerText = 0;
+            modalOverlay.style.display = 'none';
+            draw();
+        }
+
+        // ---------- 事件绑定 ----------
+        startBtn.addEventListener('click', startGame);
+        resetBtn.addEventListener('click', resetGame);
+        pauseBtn.addEventListener('click', togglePause);
+
+        // 设置面板
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.style.display = 'block';
+        });
+        settingsClose.addEventListener('click', () => {
+            settingsPanel.style.display = 'none';
+        });
+        // 点击背景关闭（可选）
+        settingsPanel.addEventListener('click', (e) => {
+            if (e.target === settingsPanel) settingsPanel.style.display = 'none';
+        });
+
+        // 音效音量
+        sfxVolumeInput.addEventListener('input', function() {
+            sfxVolume = parseInt(this.value) / 100;
+        });
+
+        // 结算框按钮
+        modalRestart.addEventListener('click', () => {
+            modalOverlay.style.display = 'none';
+            resetGame();
+            startGame();
+        });
+        modalClose.addEventListener('click', () => {
+            modalOverlay.style.display = 'none';
+        });
+
+        // ESC 暂停
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                togglePause();
+            }
+            // 方向键控制（原有逻辑）
+            if (!gameState.isRunning || paused) return;
+            const { dx, dy } = gameState;
+            if (e.key === "ArrowLeft") {
+                if (dx !== 1) { gameState.dx = -1; gameState.dy = 0; }
+            } else if (e.key === "ArrowRight") {
+                if (dx !== -1) { gameState.dx = 1; gameState.dy = 0; }
+            } else if (e.key === "ArrowUp") {
+                if (dy !== 1) { gameState.dy = -1; gameState.dx = 0; }
+            } else if (e.key === "ArrowDown") {
+                if (dy !== -1) { gameState.dy = 1; gameState.dx = 0; }
+            }
+        });
+
+        // 初始化绘制 & 排行榜
         draw();
-    }
-
-    // 重置游戏
-    function resetGame(){
-        gameState.isRunning = false;
-        clearInterval(gameState.frameTimer);
-        clearInterval(gameState.gameTimer);
-        gameState.snake = [];
-        gameState.food = null;
-        gameState.blueFood = null;
-        gameState.blueLogicActive = false;
-        gameState.blueWaitCount = 0;
-        gameState.blueAliveCount = 0;
-        scoreDom.innerText =0;
-        timerDom.innerText =0;
-        draw();
-    }
-
-// 修复版键盘控制：强制单轴移动，禁止反向、禁止斜向
-document.addEventListener('keydown', e => {
-    if (!gameState.isRunning) return;
-    const { dx, dy } = gameState;
-    // 左右键：只修改横向，纵向强制归零
-    if (e.key === "ArrowLeft") {
-        if (dx !== 1) { // 禁止直接向右掉头
-            gameState.dx = -1;
-            gameState.dy = 0;
-        }
-    } else if (e.key === "ArrowRight") {
-        if (dx !== -1) { // 禁止直接向左掉头
-            gameState.dx = 1;
-            gameState.dy = 0;
-        }
-    }
-    // 上下键：只修改纵向，横向强制归零
-    else if (e.key === "ArrowUp") {
-        if (dy !== 1) { // 禁止直接向下掉头
-            gameState.dy = -1;
-            gameState.dx = 0;
-        }
-    } else if (e.key === "ArrowDown") {
-        if (dy !== -1) { // 禁止直接向上掉头
-            gameState.dy = 1;
-            gameState.dx = 0;
-        }
-    }
-});
-
-    // 【修复2：函数定义完成后再绑定点击事件】
-    startBtn.addEventListener('click', startGame);
-    resetBtn.addEventListener('click', resetGame);
-
-    // 页面初始化绘制空白画布+加载排行榜
-    draw();
-    renderRank();
-};
-</script>
+        renderRank();
+    };
+    </script>
 </body>
 </html>
