@@ -495,25 +495,42 @@ window.onload = async function() {
     }
 
     // 键盘方向控制（修复左右转向判断）
-    document.addEventListener('keydown',e=>{
-        if(!gameState.isRunning) return;
-        const dx = gameState.dx;
-        const dy = gameState.dy;
-        switch(e.key){
-            case "ArrowUp":
-                if(dy !== 1){ gameState.dx=0; gameState.dy=-1; }
-                break;
-            case "ArrowDown":
-                if(dy !== -1){ gameState.dx=0; gameState.dy=1; }
-                break;
-            case "ArrowLeft":
-                if(dx !== -1){ gameState.dx=-1; gameState.dy=0; }
-                break;
-            case "ArrowRight":
-                if(dx !== 1){ gameState.dx=1; }
-                break;
-        }
-    });
+    // 修复后的键盘方向控制（完全解决反向撞身、斜走bug）
+document.addEventListener('keydown',e=>{
+    if(!gameState.isRunning) return;
+    const dx = gameState.dx;
+    const dy = gameState.dy;
+    switch(e.key){
+        case "ArrowLeft":
+            // 水平移动，清空纵向速度，禁止直接向右反向
+            if(dx !== 1){
+                gameState.dx = -1;
+                gameState.dy = 0;
+            }
+            break;
+        case "ArrowRight":
+            // 水平移动，清空纵向速度，禁止直接向左反向
+            if(dx !== -1){
+                gameState.dx = 1;
+                gameState.dy = 0;
+            }
+            break;
+        case "ArrowUp":
+            // 垂直移动，清空横向速度，禁止直接向下反向
+            if(dy !== 1){
+                gameState.dy = -1;
+                gameState.dx = 0;
+            }
+            break;
+        case "ArrowDown":
+            // 垂直移动，清空横向速度，禁止直接向上反向
+            if(dy !== -1){
+                gameState.dy = 1;
+                gameState.dx = 0;
+            }
+            break;
+    }
+});
 
     // 【修复2：函数定义完成后再绑定点击事件】
     startBtn.addEventListener('click', startGame);
