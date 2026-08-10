@@ -374,68 +374,68 @@ window.onload = async function() {
     }
 
     // 游戏帧更新
-    function gameFrame(){
-        if(gameState.dx !== 0 && gameState.dy !== 0){
-        // 优先保留横向运动，清空纵向；若横向为0则保留纵向
-        if(gameState.dx !== 0){
+    function gameFrame() {
+    // 强制单轴运动（防斜向）
+    if (gameState.dx !== 0 && gameState.dy !== 0) {
+        if (gameState.dx !== 0) {
             gameState.dy = 0;
-        }else{
+        } else {
             gameState.dx = 0;
         }
-        }
-        // ==========================================
-        if(!gameState.isRunning) return;
-        const head = gameState.snake[0];
-        const newHead = {
-            x: head.x + gameState.dx,
-            y: head.y + gameState.dy
-        };
-        // 撞墙/撞障碍/撞自身判定
-        if(isBlockPos(newHead.x, newHead.y)){
+    }
+
+    if (!gameState.isRunning) return;
+
+    // ✅ 唯一声明点
+    const head = gameState.snake[0];
+    const newHead = {
+        x: head.x + gameState.dx,
+        y: head.y + gameState.dy
+    };
+
+    // 撞墙/撞障碍/撞自身
+    if (isBlockPos(newHead.x, newHead.y)) {
+        gameOver();
+        return;
+    }
+    for (let seg of gameState.snake) {
+        if (newHead.x === seg.x && newHead.y === seg.y) {
             gameOver();
             return;
         }
-        for(let seg of gameState.snake){
-            if(newHead.x === seg.x && newHead.y === seg.y){
-                gameOver();
-                return;
-            }
-        }
-
-        gameState.snake.unshift(newHead);
-        let ateFood = false;
-
-        // 吃到普通红点
-        if(gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y){
-            gameState.score += 1;
-            gameState.growSpeedCounter += 1;
-            ateFood = true;
-            spawnFood();
-            // 每吃5个提速
-            if(gameState.growSpeedCounter %5 === 0){
-                if(gameState.currentDelay >40){
-                    gameState.currentDelay -=10;
-                    clearInterval(gameState.frameTimer);
-                    gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
-                }
-            }
-        }
-
-        // 吃到蓝点
-        if(gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y){
-            gameState.score +=5;
-            ateFood = true;
-            gameState.blueFood = null;
-            gameState.blueWaitCount = 0;
-        }
-
-        if(!ateFood){
-            gameState.snake.pop();
-        }
-
-        scoreDom.innerText = gameState.score;
-        draw();
     }
+
+    gameState.snake.unshift(newHead);
+    let ateFood = false;
+
+    // 吃红点
+    if (gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y) {
+        gameState.score += 1;
+        gameState.growSpeedCounter += 1;
+        ateFood = true;
+        spawnFood();
+        if (gameState.growSpeedCounter % 5 === 0 && gameState.currentDelay > 40) {
+            gameState.currentDelay -= 10;
+            clearInterval(gameState.frameTimer);
+            gameState.frameTimer = setInterval(gameFrame, gameState.currentDelay);
+        }
+    }
+
+    // 吃蓝点
+    if (gameState.blueFood && newHead.x === gameState.blueFood.x && newHead.y === gameState.blueFood.y) {
+        gameState.score += 5;
+        ateFood = true;
+        gameState.blueFood = null;
+        gameState.blueWaitCount = 0;
+    }
+
+    if (!ateFood) {
+        gameState.snake.pop();
+    }
+
+    scoreDom.innerText = gameState.score;
+    draw();
+}
 
     // 开启游戏（函数提前定义，再绑定事件）
     function startGame(){
