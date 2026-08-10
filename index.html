@@ -397,44 +397,46 @@
 
         // ---------- 排行榜 ----------
         async function renderRank() {
-            try {
-                async function getRank(diff) {
-                    const { data, error } = await supabaseClient
-                        .from('snake_rank')
-                        .select('name,score')
-                        .eq('difficulty', diff)
-                        .order('score', { ascending: false })
-                        .limit(10);
-                    if (error) throw error;
-                    return data || [];
-                }
-                const easyList = await getRank("easy");
-                const middleList = await getRank("middle");
-                const hardList = await getRank("hard");
-
-                function renderOne(dom, list) {
-                    dom.innerHTML = "";
-                    if (list.length === 0) {
-                        dom.innerHTML = "<div>暂无记录</div>";
-                        return;
-                    }
-                    list.forEach((item, idx) => {
-                        const div = document.createElement('div');
-                        div.className = "rank-item";
-                        div.innerText = `${idx+1}. ${item.name} — ${item.score}分`;
-                        dom.appendChild(div);
-                    });
-                }
-                renderOne(rankEasyDom, easyList);
-                renderOne(rankMiddleDom, middleList);
-                renderOne(rankHardDom, hardList);
-            } catch (err) {
-                console.error("排行榜加载失败：", err);
-                rankEasyDom.innerText = "加载失败";
-                rankMiddleDom.innerText = "加载失败";
-                rankHardDom.innerText = "加载失败";
-            }
+    try {
+        async function getRank(diff) {
+            const { data, error } = await supabaseClient
+                .from('snake_rank')
+                .select('name,score')
+                .eq('difficulty', diff)
+                .order('score', { ascending: false })
+                .limit(10);
+            if (error) throw error;
+            return data || [];
         }
+        const easyList = await getRank("easy");
+        const middleList = await getRank("middle");
+        const hardList = await getRank("hard");
+
+        function renderOne(dom, list) {
+            dom.innerHTML = "";
+            if (list.length === 0) {
+                dom.innerHTML = "<div>暂无记录</div>";
+                return;
+            }
+            list.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = "rank-item";
+                div.innerText = `${idx+1}. ${item.name} — ${item.score}分`;
+                dom.appendChild(div);
+            });
+        }
+        renderOne(rankEasyDom, easyList);
+        renderOne(rankMiddleDom, middleList);
+        renderOne(rankHardDom, hardList);
+    } catch (err) {
+        console.error("排行榜加载失败：", err);
+        // 将错误详情显示在界面上（便于定位）
+        const errorMsg = err.message || "未知错误";
+        rankEasyDom.innerText = "❌ " + errorMsg;
+        rankMiddleDom.innerText = "❌ " + errorMsg;
+        rankHardDom.innerText = "❌ " + errorMsg;
+    }
+}
 
         async function trySaveScore(newScore, diffKey) {
             if (newScore <= 0) return;
